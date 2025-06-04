@@ -3,21 +3,22 @@ pipeline {
     environment {
         DOCKER_IMAGE = "docker4241/my-app"
         K8S_NAMESPACE = "dev"
+        K8S_CONTEXT = "developer-context" 
+        KUBECONFIG_PATH = "/var/lib/jenkins/.kube/config"
     }
     stages {
-       
         stage('Build & Test') {
             agent {
                 docker {
                     image 'python:3.9'
-                    args '-v $PWD:/app -w /app'  // Added working directory
+                    args '-v $PWD:/app -w /app'
                 }
             }
             steps {
                 sh '''
-                      python -m venv venv
-            . venv/bin/activate
-            pip install -r requirements.txt
+                python -m venv venv
+                . venv/bin/activate
+                pip install --no-cache-dir -r requirements.txt
                 '''
             }
         }
@@ -42,12 +43,14 @@ pipeline {
         
         stage('Deploy to Kubernetes') {
             steps {
-                script {
-                    sh """
-                    kubectl config use-context your-k8s-context
-                    kubectl set image deployment/my-app \\
-                    app=${DOCKER_IMAGE}:${BUILD_NUMBER} -n ${K8S_NAMESPACE}
-                    """
+                withEnv(["KUBECONFIG=${KUBECONFIG_PATH}"]) {
+                    script {
+                        sh """
+                        kubectl config use-context ${K8S_CONTEXT}
+                        kubectl set image deployment/my-app \\
+                          app=${DOCKER_IMAGE}:${BUILD_NUMBER} -n ${K8S_NAMESPACE}
+                        """
+                    }
                 }
             }
         }
