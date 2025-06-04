@@ -3,8 +3,8 @@ pipeline {
     environment {
         DOCKER_IMAGE = "docker4241/my-app"
         K8S_NAMESPACE = "dev"
-        K8S_CONTEXT = "developer-context" 
-        KUBECONFIG_PATH = "/var/lib/jenkins/.kube/config"
+    
+       
     }
     stages {
         stage('Build & Test') {
@@ -43,15 +43,12 @@ pipeline {
         
         stage('Deploy to Kubernetes') {
             steps {
-                withEnv(["KUBECONFIG=${KUBECONFIG_PATH}"]) {
-                    script {
+              script {
                         sh """
-                        kubectl config use-context ${K8S_CONTEXT}
                         kubectl set image deployment/my-app \\
                           app=${DOCKER_IMAGE}:${BUILD_NUMBER} -n ${K8S_NAMESPACE}
                         """
                     }
-                }
             }
         }
     }
