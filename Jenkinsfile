@@ -1,54 +1,45 @@
 pipeline {
     agent any
+
     environment {
-        DOCKER_IMAGE = "docker4241/my-app"
-        K8S_NAMESPACE = "dev"
-    
-       
+        DOCKER_IMAGE = "docker4241/test-phython-app"
+        KUBE_CONFIG = credentials('kube-config') // Jenkins credential with Kubeconfig
     }
+
     stages {
-        stage('Build & Test') {
-            agent {
-                docker {
-                    image 'python:3.9'
-                    args '-v $PWD:/app -w /app'
-                }
-            }
+        stage('Checkout') {
             steps {
-                sh '''
-                python -m venv venv
-                . venv/bin/activate
-                pip install --no-cache-dir -r requirements.txt
-                '''
+                git url: 'https://github.com/blackcouger/PySimple.git', branch: 'master'
             }
         }
-        
-        stage('Build Docker Image') {
+
+        stage('Build') {
             steps {
                 script {
-                    docker.build("${DOCKER_IMAGE}:${BUILD_NUMBER}")
+                    dockerImage = docker.build("${DOCKER_IMAGE}:${BUILD_NUMBER}")
                 }
             }
         }
-        
-        stage('Push to Registry') {
+
+        stage('Push to Docker Hub') {
             steps {
                 script {
-                    docker.withRegistry('https://registry.hub.docker.com', 'docker-id') {
-                        docker.image("${DOCKER_IMAGE}:${BUILD_NUMBER}").push()
+                    docker.withRegistry('https://index.docker.io/v1/', 'docker-id') {
+                        dockerImage.push()
                     }
                 }
             }
         }
-        
+
         stage('Deploy to Kubernetes') {
             steps {
-              script {
-                        sh """
-                        kubectl set image deployment/my-app \\
-                          app=${DOCKER_IMAGE}:${BUILD_NUMBER} -n ${K8S_NAMESPACE}
-                        """
-                    }
+                withCredentials([file(credentialsId: 'kube-config', variable: 'KUBECONFIG')]) {
+                    sh """
+                        kubectl apply -f test-app-deployment
+                        kubectl --kubeconfig=$KUBECONFIG set image deployment/test-app-deployment \
+                            test-app-container=${DOCKER_IMAGE}:${BUILD_NUMBER} --record
+                    """
+                }
             }
         }
     }
