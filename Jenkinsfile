@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "docker4241/test-phython-app"
-        KUBE_CONFIG = credentials('kube-config') // Jenkins credential with Kubeconfig 123
+        KUBE_CONFIG = credentials('kube-config') // Jenkins credential with Kubeconfig
     }
 
     stages {
